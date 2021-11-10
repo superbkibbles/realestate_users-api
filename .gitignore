@@ -15,3 +15,4 @@
 # vendor/
 
 go.sum
+src/datasources/images/

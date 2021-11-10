@@ -5,6 +5,7 @@ import (
 
 	"github.com/superbkibbles/bookstore_utils-go/rest_errors"
 	"github.com/superbkibbles/realestate_users-api/src/domain/users"
+	"github.com/superbkibbles/realestate_users-api/src/utils/crypto_utils"
 	"github.com/superbkibbles/realestate_users-api/src/utils/date_utils"
 	"github.com/superbkibbles/realestate_users-api/src/utils/file_utils"
 )
@@ -41,6 +42,7 @@ func (*userService) GetByID(id int64) (*users.User, rest_errors.RestErr) {
 func (*userService) Create(userForm users.UserForm, header *multipart.FileHeader, file multipart.File) (*users.User, rest_errors.RestErr) {
 	userForm.DateCreated = date_utils.GetNowDBFromat()
 	userForm.Status = users.StatusActive
+	userForm.Password = crypto_utils.GetMd5(userForm.Password)
 	// Saving Pic
 	fileName, err := file_utils.SaveFile(header, file)
 	if err != nil {
