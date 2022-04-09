@@ -21,6 +21,7 @@ type userServiceInterface interface {
 	UpdateUser(users.User) (*users.User, rest_errors.RestErr)
 	UpdatePhoto(users.UserPhotoUpdate, *multipart.FileHeader, multipart.File) (*users.User, rest_errors.RestErr)
 	DeleteUser(int64) rest_errors.RestErr
+	LikeProperty(users.LikePrpertyReq) rest_errors.RestErr
 }
 
 type userService struct{}
@@ -28,6 +29,10 @@ type userService struct{}
 func (*userService) Get() (users.Users, rest_errors.RestErr) {
 	dao := users.User{}
 	return dao.Get()
+}
+
+func (*userService) LikeProperty(likeProperty users.LikePrpertyReq) rest_errors.RestErr {
+	return likeProperty.LikeProperty()
 }
 
 func (*userService) GetByID(id int64) (*users.User, rest_errors.RestErr) {
@@ -40,19 +45,23 @@ func (*userService) GetByID(id int64) (*users.User, rest_errors.RestErr) {
 }
 
 func (*userService) Create(userForm users.UserForm, header *multipart.FileHeader, file multipart.File) (*users.User, rest_errors.RestErr) {
+	var fileName string
+	var err rest_errors.RestErr
 	userForm.DateCreated = date_utils.GetNowDBFromat()
 	userForm.Status = users.StatusActive
 	userForm.Password = crypto_utils.GetMd5(userForm.Password)
-	// Saving Pic
-	fileName, err := file_utils.SaveFile(header, file)
-	if err != nil {
-		return nil, err
+	if file != nil {
+		fileName, err = file_utils.SaveFile(header, file)
+		if err != nil {
+			return nil, err
+		}
 	}
 	user, err := userForm.Save(fileName)
 	if err != nil {
 		file_utils.DeleteFile(fileName)
 		return nil, err
 	}
+
 	return user, nil
 }
 

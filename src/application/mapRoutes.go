@@ -15,4 +15,6 @@ func mapUrls() {
 	router.PATCH("/api/users/photo/:user_id", user.UserController.UpdateUserPhoto)
 	// deactivated user
 	router.DELETE("/api/users/:user_id", user.UserController.Delete)
+	// Like property
+	router.POST("/api/users/likeproperty", user.UserController.LikeProperty)
 }

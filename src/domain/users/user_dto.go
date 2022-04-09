@@ -13,21 +13,23 @@ const (
 )
 
 type User struct {
-	Id          int64  `json:"id"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	Age         int64  `json:"age"`
-	Email       string `json:"email"`
-	UserName    string `json:"user_name"`
-	Password    string `json:"password"`
-	PhoneNumber string `json:"phone_number"`
-	Photo       string `json:"photo"`
-	City        string `json:"city"`
-	GPS         string `json:"gps"`
-	DateCreated string `json:"date_created"`
-	Status      string `json:"status"`
-	Gender      string `json:"gender"`
-	AppLanguage string `json:"app_language"`
+	Id            int64    `json:"id"`
+	FirstName     string   `json:"first_name"`
+	LastName      string   `json:"last_name"`
+	Age           int64    `json:"age"`
+	Email         string   `json:"email"`
+	UserName      string   `json:"user_name"`
+	Password      string   `json:"password"`
+	PhoneNumber   string   `json:"phone_number"`
+	Photo         string   `json:"photo"`
+	City          string   `json:"city"`
+	GPS           string   `json:"gps"`
+	DateCreated   string   `json:"date_created"`
+	Status        string   `json:"status"`
+	Gender        string   `json:"gender"`
+	AppLanguage   string   `json:"app_language"`
+	Bithday       string   `json:"birthday"`
+	LikedProperty []string `json:"liked_property"`
 }
 
 type UserForm struct {
@@ -46,6 +48,12 @@ type UserForm struct {
 	Status      string                `form:"status" binding:"-"`
 	Gender      string                `form:"gender" binding:"-"`
 	AppLanguage string                `form:"app_language" binding:"-"`
+	Bithday     string                `json:"birthday" binding:"-"`
+}
+
+type LikePrpertyReq struct {
+	PropertyID string `json:"property_id"`
+	UserID     int    `json:"user_id"`
 }
 
 type Users []User

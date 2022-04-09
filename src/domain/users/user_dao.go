@@ -5,26 +5,23 @@ import (
 
 	"github.com/superbkibbles/bookstore_utils-go/logger"
 	"github.com/superbkibbles/bookstore_utils-go/rest_errors"
+	"github.com/superbkibbles/realestate_users-api/src/constants"
 	"github.com/superbkibbles/realestate_users-api/src/datasources/mysqlclient"
 	"github.com/superbkibbles/realestate_users-api/src/utils/mysql_utils"
 )
 
 const (
-	queryInsertUsers     = "INSERT INTO users(first_name, last_name, age, email, user_name, password, phone_number, photo, city, gps, date_created, status, gender, app_language) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
-	queryGetUserByID     = "SELECT id, first_name, last_name, age, email, user_name, phone_number, photo, city, gps, date_created, status, gender, app_language FROM users WHERE id=?;"
-	queryGetAllUsers     = "SELECT id, first_name, last_name, age, email, user_name, phone_number, photo, city, gps, date_created, status, gender, app_language FROM users;"
-	queryUpdateUser      = "UPDATE users SET first_name=?, last_name=?, age=?, email=?, user_name=?, phone_number=?, city=?, gps=?, status=?, gender=?, app_language=? WHERE id=?;"
-	queryUpdateUserPhoto = "UPDATE users SET photo=? WHERE id=?;"
-	queryDeleteUser      = "UPDATE users set status=? where id=?"
+	queryLikeProperty = "INSERT INTO(property_id, user_id) values(?, ?)"
 )
 
-// NOT IMPLEMENTED
 func (u *User) Get() (Users, rest_errors.RestErr) {
-	stmt, err := mysqlclient.Session.Prepare(queryGetAllUsers)
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_GET_ALL_USERS)
 	if err != nil {
 		logger.Error("error while trying to prepare get user statment", err)
 		return nil, rest_errors.NewInternalServerErr("Database error", nil)
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query()
 	if err != nil {
 		logger.Error("error while trying to Get all users", err)
@@ -47,15 +44,35 @@ func (u *User) Get() (Users, rest_errors.RestErr) {
 	return results, nil
 }
 
+func (u *LikePrpertyReq) LikeProperty() rest_errors.RestErr {
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_INSERT_LIKE_PROPERTY)
+	if err != nil {
+		logger.Error("error while trying to prepare like property statment", err)
+		return rest_errors.NewInternalServerErr("Database error", nil)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(u.PropertyID, u.UserID)
+	if err != nil {
+		logger.Error("error while trying to save user", err)
+		return rest_errors.NewInternalServerErr("Database error", nil)
+	}
+
+	return nil
+}
+
 func (u *UserForm) Save(fileName string) (*User, rest_errors.RestErr) {
-	stmt, err := mysqlclient.Session.Prepare(queryInsertUsers)
+	var photoLink string
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_INSERT_USER)
 	if err != nil {
 		logger.Error("error while trying to prepare get user statment", err)
 		return nil, rest_errors.NewInternalServerErr("Database error", nil)
 	}
 	defer stmt.Close()
 
-	photoLink := "http://localhost:8080/assets/" + fileName
+	if fileName != "" {
+		photoLink = "http://localhost:8080/assets/" + fileName
+	}
 
 	insertRes, err := stmt.Exec(u.FirstName, u.LastName, u.Age, u.Email, u.UserName, u.Password, u.PhoneNumber, photoLink, u.City, u.GPS, u.DateCreated, u.Status, u.Gender, u.AppLanguage)
 	if err != nil {
@@ -68,7 +85,6 @@ func (u *UserForm) Save(fileName string) (*User, rest_errors.RestErr) {
 		logger.Error("error while trying to get created user id", err)
 		return nil, rest_errors.NewInternalServerErr("Database error", nil)
 	}
-	// Create instance of User and assign the id to it
 	var user User
 	user.Id = userID
 	if err := user.GetByID(); err != nil {
@@ -78,8 +94,36 @@ func (u *UserForm) Save(fileName string) (*User, rest_errors.RestErr) {
 	return &user, nil
 }
 
+func (u *User) GetLikedProperties() rest_errors.RestErr {
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_GET_LIKED_PROPERTY)
+	if err != nil {
+		logger.Error("error while trying to prepare get liked propety statment", err)
+		return rest_errors.NewInternalServerErr("Database Error", nil)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(u.Id)
+	if err != nil {
+		logger.Error("error while trying to get property by id", err)
+		return mysql_utils.ParseError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			logger.Error("error while trying to scan user into user struct", err)
+			return rest_errors.NewInternalServerErr("Database error", nil)
+		}
+		u.LikedProperty = append(u.LikedProperty, s)
+	}
+	return nil
+}
+
 func (u *User) GetByID() rest_errors.RestErr {
-	stmt, err := mysqlclient.Session.Prepare(queryGetUserByID)
+	// Get user
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_GET_USER_ID)
+
 	if err != nil {
 		logger.Error("error while trying to prepare get by ID user statment", err)
 		return rest_errors.NewInternalServerErr("Database Error", nil)
@@ -90,11 +134,11 @@ func (u *User) GetByID() rest_errors.RestErr {
 		logger.Error("error while trying to get user by ID", getErr)
 		return mysql_utils.ParseError(getErr)
 	}
-	return nil
+	return u.GetLikedProperties()
 }
 
 func (u *User) Update() rest_errors.RestErr {
-	stmt, err := mysqlclient.Session.Prepare(queryUpdateUser)
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_UPDATE_USER)
 	if err != nil {
 		logger.Error("error while trying to prepare Update user statment", err)
 		return rest_errors.NewInternalServerErr("Database Error", nil)
@@ -110,7 +154,7 @@ func (u *User) Update() rest_errors.RestErr {
 }
 
 func (u *User) UpdatePhoto(fileName string) rest_errors.RestErr {
-	stmt, err := mysqlclient.Session.Prepare(queryUpdateUserPhoto)
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_UPDATE_USER_PHOTO)
 	if err != nil {
 		logger.Error("error while trying to prepare Update user photo statment", err)
 		return rest_errors.NewInternalServerErr("Database Error", nil)
@@ -128,7 +172,7 @@ func (u *User) UpdatePhoto(fileName string) rest_errors.RestErr {
 }
 
 func (u *User) Delete() rest_errors.RestErr {
-	stmt, err := mysqlclient.Session.Prepare(queryDeleteUser)
+	stmt, err := mysqlclient.Session.Prepare(constants.QUERY_DELETE_USER)
 	if err != nil {
 		logger.Error("error while trying to prepare Deactivate user", err)
 		return rest_errors.NewInternalServerErr("Database Error", nil)

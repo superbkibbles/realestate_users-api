@@ -1,8 +1,10 @@
 package user
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/superbkibbles/bookstore_utils-go/rest_errors"
@@ -19,6 +21,7 @@ type userControllerInterface interface {
 	UpdateUser(*gin.Context)
 	UpdateUserPhoto(*gin.Context)
 	Delete(*gin.Context)
+	LikeProperty(*gin.Context)
 	// Update(*gin.Context)
 	// Delete(*gin.Context)
 }
@@ -58,7 +61,25 @@ func (*userController) GetByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, user.Marshal(false))
+}
+
+func (*userController) LikeProperty(c *gin.Context) {
+	var likeProperty users.LikePrpertyReq
+
+	if err := c.ShouldBindJSON(&likeProperty); err != nil {
+		restErr := rest_errors.NewBadRequestErr("Invalid json body")
+		c.JSON(restErr.Status(), restErr)
+		return
+	}
+
+	err := services.UserService.LikeProperty(likeProperty)
+	if err != nil {
+		c.JSON(err.Status(), err)
+		return
+	}
+	c.JSON(http.StatusOK, "Successfully liked property")
+
 }
 
 func (*userController) Create(c *gin.Context) {
@@ -72,9 +93,12 @@ func (*userController) Create(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("photo")
 	if err != nil {
-		restErr := rest_errors.NewBadRequestErr("Invalid file type")
-		c.JSON(restErr.Status(), restErr)
-		return
+		if !strings.Contains(err.Error(), "http: no such file") {
+			restErr := rest_errors.NewBadRequestErr("Invalid file type")
+			c.JSON(restErr.Status(), restErr)
+			fmt.Println(err.Error())
+			return
+		}
 	}
 
 	res, saveErr := services.UserService.Create(user, header, file)
